@@ -1,0 +1,13 @@
+{
+  "name": "ekg-lens-ai-mobile",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Mobile-ready ECG viewer, measurement tool, and multi-agent educational interpretation app.",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
