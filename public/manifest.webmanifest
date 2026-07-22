@@ -1,0 +1,17 @@
+{
+  "name": "EKG Lens AI",
+  "short_name": "EKG Lens",
+  "description": "Capture, magnify, measure, and cautiously review ECG images with educational AI agents.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef5fb",
+  "theme_color": "#07172d",
+  "categories": ["medical", "education", "utilities"],
+  "icons": [
+    {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}

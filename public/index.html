@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07172d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EKG Lens AI">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>EKG Lens AI — Camera, Measurements & Multi-Agent Review</title>
+<style>
+:root{
+  --navy:#07172d;--blue:#0f62fe;--sky:#38bdf8;--green:#15803d;--red:#b91c1c;--amber:#b45309;
+  --bg:#eef5fb;--card:#ffffff;--ink:#102033;--muted:#64748b;--line:#d7e3ef;--soft:#f7fbff;
+  --shadow:0 12px 32px rgba(15,35,80,.09)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:linear-gradient(180deg,#e8f4ff 0,#f8fbff 38%,#eef5fb 100%);color:var(--ink)}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+a{color:#0b55d4}
+header{background:radial-gradient(circle at 12% 5%,#225c9f,var(--navy) 66%);color:#fff;padding:24px 18px 20px;border-bottom:4px solid var(--sky)}
+.header-inner{max-width:1500px;margin:auto;display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(26px,4vw,40px)}
+header p{max-width:930px;color:#d5eaff;margin:7px 0 0;line-height:1.5}
+.status{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border-radius:999px;font-weight:800;font-size:12px;background:#e7eff8;color:#24425f}
+.pill.live{background:#dcfce7;color:#166534}.pill.demo{background:#ffedd5;color:#9a3412}.pill.danger{background:#fee2e2;color:#991b1b}.pill.info{background:#dbeafe;color:#1d4ed8}
+.app{max-width:1500px;margin:auto;padding:16px;display:grid;gap:16px}
+.emergency{background:#fff1f2;border:1px solid #fecdd3;border-left:6px solid var(--red);border-radius:14px;padding:13px 15px;line-height:1.45}
+.emergency strong{color:#991b1b}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;background:rgba(255,255,255,.8);padding:8px;border:1px solid var(--line);border-radius:16px;position:sticky;top:0;z-index:30;backdrop-filter:blur(10px)}
+.tab{border:0;border-radius:11px;background:#eaf1f8;color:#24425f;padding:10px 14px;font-weight:800;width:auto}
+.tab.active{background:var(--navy);color:white}
+.section{display:none}.section.active{display:block}
+.grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.75fr);gap:16px;align-items:start}
+.card{background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:15px}
+.card h2,.card h3{margin:0 0 10px}
+.viewer-shell{position:relative;background:#0b1320;border-radius:16px;overflow:hidden;min-height:360px;display:grid;place-items:center}
+#ecgCanvas{display:block;width:100%;height:auto;max-height:72vh;touch-action:none;background:#fff}
+#cameraVideo{width:100%;max-height:70vh;object-fit:contain;background:#000;display:none}
+.empty{color:#dbeafe;text-align:center;padding:45px 25px;max-width:580px;line-height:1.55}
+.viewer-badge{position:absolute;top:10px;left:10px;background:rgba(7,23,45,.86);color:#fff;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;z-index:5}
+.lens-help{position:absolute;right:10px;top:10px;background:rgba(255,255,255,.92);color:#15314f;border-radius:10px;padding:6px 9px;font-size:12px;z-index:5}
+.controls{display:grid;gap:10px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+label{font-size:13px;font-weight:800;color:#334155;display:block}
+input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:11px;background:#fff;color:#0f172a;padding:10px 11px;margin-top:5px;min-width:0}
+textarea{min-height:82px;resize:vertical}
+input[type=range]{padding:0}
+button.primary,button.secondary,button.good,button.warn,button.danger-btn{border:0;border-radius:11px;padding:11px 13px;font-weight:850;width:100%}
+button.primary{background:var(--blue);color:#fff}.secondary{background:#e2e8f0;color:#172033}.good{background:var(--green);color:white}.warn{background:#f59e0b;color:#231400}.danger-btn{background:var(--red);color:#fff}
+button:disabled{opacity:.48;cursor:not-allowed}
+.upload-label{display:block;border:2px dashed #93b7dc;background:#f5faff;border-radius:14px;padding:14px;text-align:center;font-weight:850;color:#17457a;cursor:pointer}
+.upload-label input{display:none}
+.small{font-size:12px;color:var(--muted);line-height:1.5}.muted{color:var(--muted)}
+.toolbox{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.tool{border:1px solid #cbd5e1;background:#f8fafc;border-radius:10px;padding:9px 7px;font-weight:800;color:#334155}
+.tool.active{background:#dbeafe;border-color:#60a5fa;color:#1d4ed8}
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.metric{border:1px solid #dbeafe;background:#f8fbff;border-radius:13px;padding:11px}.metric span{display:block;font-size:12px;color:var(--muted)}.metric b{font-size:20px;color:#123f78}
+.measure-log{display:grid;gap:7px;margin-top:10px}.measure-item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:9px 10px;font-size:13px}.measure-item button{border:0;background:#fee2e2;color:#991b1b;border-radius:8px;padding:5px 8px}
+.callout{border-left:5px solid var(--blue);background:#eff6ff;border-radius:12px;padding:12px 13px;line-height:1.5}.callout.warn{border-left-color:#d97706;background:#fffbeb}.callout.danger{border-left-color:#dc2626;background:#fff1f2}
+.report-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.report-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:12px}.report-block{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}.report-block h3{font-size:16px;margin:0 0 8px;color:#123f78}.report-block ul{margin:7px 0 0;padding-left:20px}.report-block li{margin:5px 0;line-height:1.4}
+.full{grid-column:1/-1}.confidence{height:9px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin-top:8px}.confidence i{display:block;height:100%;background:var(--blue)}
+.diff{border-top:1px solid #e2e8f0;padding-top:10px;margin-top:10px}.diff:first-of-type{border-top:0;padding-top:0;margin-top:0}
+.chat{display:grid;gap:10px}.messages{min-height:280px;max-height:620px;overflow:auto;border:1px solid var(--line);background:#f8fbff;border-radius:14px;padding:12px}.msg{max-width:88%;padding:10px 12px;border-radius:14px;margin:8px 0;line-height:1.45;white-space:pre-wrap}.msg.user{margin-left:auto;background:#dbeafe;color:#153e75}.msg.ai{background:#fff;border:1px solid #d8e6f5}.msg.system{max-width:100%;background:#fffbeb;border:1px solid #fde68a;color:#713f12}
+.spinner{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:8px}@keyframes spin{to{transform:rotate(360deg)}}
+
+.key-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}.key-row button{width:auto;min-width:92px}
+.connection-card{border:1px solid #bfdbfe;background:#eff6ff;border-radius:14px;padding:13px}.connection-card strong{color:#123f78}
+.quick-steps{display:grid;gap:10px}.quick-step{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;border:1px solid #e2e8f0;border-radius:13px;padding:11px;background:#fff}.quick-step b:first-child{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#dbeafe;color:#1d4ed8}
+.inline-check{display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:700;color:#334155}.inline-check input{width:auto;margin:2px 0 0}
+.install-action{border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:7px 11px;font-weight:800;font-size:12px;width:auto}
+.mini-status{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dot{width:9px;height:9px;border-radius:50%;background:#d97706;display:inline-block}.dot.ok{background:#16a34a}.dot.off{background:#dc2626}
+.api-note{word-break:break-word}
+@media(display-mode:standalone){.install-action{display:none!important}}
+footer{max-width:1500px;margin:0 auto 24px;padding:0 16px}.footer-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px 15px;color:#475569;line-height:1.5}
+@media(max-width:980px){.grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(2,1fr)}.viewer-shell{min-height:280px}}
+@media(max-width:620px){header{padding-top:max(18px,env(safe-area-inset-top))}.app{padding:10px}.row,.row3,.report-grid{grid-template-columns:1fr}.toolbox{grid-template-columns:repeat(2,1fr)}.metric-grid{grid-template-columns:1fr 1fr}.card{padding:12px;border-radius:15px}.tabs{border-radius:13px}.tab{flex:1;padding:9px 6px;font-size:12px}.lens-help{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div>
+      <h1>EKG Lens AI</h1>
+      <p>Capture or upload an ECG, inspect it with a clickable magnifying lens, measure intervals from the paper grid, and request a cautious multi-agent interpretation with differential reasoning.</p>
+    </div>
+    <div class="status">
+      <span id="apiStatus" class="pill demo">Checking AI…</span>
+      <span id="onlineStatus" class="pill info">Checking network…</span>
+      <button id="installBtn" class="install-action" type="button" hidden>Install app</button>
+      <a href="practice.html" class="pill" style="text-decoration:none">Rhythm simulator</a>
+    </div>
+  </div>
+</header>
+
+<main class="app">
+  <div class="emergency"><strong>Emergency rule:</strong> chest pain, severe shortness of breath, fainting, new weakness, confusion, shock signs, or a dangerous-looking rhythm requires immediate emergency evaluation. A photo-based AI review cannot rule out myocardial infarction or a life-threatening arrhythmia.</div>
+
+  <nav class="tabs" aria-label="App sections">
+    <button class="tab active" data-tab="connect">1. Connect AI</button>
+    <button class="tab" data-tab="capture">2. Capture</button>
+    <button class="tab" data-tab="measure">3. Measure</button>
+    <button class="tab" data-tab="report">4. Agent report</button>
+    <button class="tab" data-tab="discuss">5. Discuss</button>
+  </nav>
+
+  <section id="connect" class="section active">
+    <div class="grid">
+      <div class="card controls">
+        <h2>Connect your AI key</h2>
+        <div class="connection-card">
+          <div class="mini-status"><span id="keyDot" class="dot"></span><strong id="keyStatus">Checking available connection…</strong></div>
+          <p id="keyDetail" class="small api-note" style="margin-bottom:0">The app can use a key configured on the local server or a personal key entered for this browser session.</p>
+        </div>
+        <label>OpenAI API key
+          <div class="key-row">
+            <input id="apiKeyInput" type="password" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-… or project key">
+            <button id="toggleKey" class="secondary" type="button">Show</button>
+          </div>
+        </label>
+        <label>Vision-capable model
+          <input id="modelInput" list="modelSuggestions" value="gpt-5.6" autocomplete="off" spellcheck="false">
+          <datalist id="modelSuggestions">
+            <option value="gpt-5.6"></option>
+            <option value="gpt-5.4"></option>
+            <option value="gpt-5.1"></option>
+            <option value="gpt-4.1"></option>
+          </datalist>
+        </label>
+        <div class="row3">
+          <button id="useApiKey" class="primary" type="button">Use key this session</button>
+          <button id="testApiKey" class="good" type="button">Test connection</button>
+          <button id="forgetApiKey" class="secondary" type="button">Forget key</button>
+        </div>
+        <div id="keyMessage" class="callout warn small" aria-live="polite"><b>Personal-use mode:</b> the key stays only in page memory and is sent to this app’s local server with each AI request. Closing or refreshing the page forgets it. For a shared or public deployment, use the server environment variable instead.</div>
+        <button id="goCapture" class="good" type="button">Connected? Capture or upload an ECG</button>
+      </div>
+
+      <aside class="card controls">
+        <h2>Mobile standalone setup</h2>
+        <button id="installBtnPanel" class="primary" type="button">Install on this phone</button>
+        <p class="small">When installed from HTTPS, EKG Lens AI opens like an app from the home screen. Camera access requires HTTPS or localhost; the image upload control can still open the phone camera on many devices.</p>
+        <div class="quick-steps">
+          <div class="quick-step"><b>1</b><div><strong>Connect</strong><div class="small">Use a personal session key or a server-configured key.</div></div></div>
+          <div class="quick-step"><b>2</b><div><strong>Capture</strong><div class="small">Photograph the full ECG page with labels and calibration visible.</div></div></div>
+          <div class="quick-step"><b>3</b><div><strong>Measure</strong><div class="small">Calibrate one small box, then click RR, PR, QRS, QT, or ST points.</div></div></div>
+          <div class="quick-step"><b>4</b><div><strong>Run agents</strong><div class="small">Review signal features, differential diagnoses, technical errors, urgency, and calculations.</div></div></div>
+        </div>
+        <div class="callout danger small"><b>Do not enter patient identifiers.</b> This is an educational prototype, not a diagnostic medical device.</div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="capture" class="section">
+    <div class="grid">
+      <div class="card">
+        <div class="viewer-shell" id="viewerShell">
+          <span class="viewer-badge" id="viewerBadge">No ECG loaded</span>
+          <span class="lens-help">Click the tracing to pin the lens</span>
+          <video id="cameraVideo" playsinline muted></video>
+          <canvas id="ecgCanvas" width="1200" height="700" aria-label="ECG image viewer"></canvas>
+          <div class="empty" id="emptyState"><b>Load an ECG image</b><br>Use the phone camera, capture button, or upload a clear photo. Keep the whole 12-lead page flat, well lit, and square to the camera.</div>
+        </div>
+        <div class="toolbox" aria-label="Viewer tools">
+          <button class="tool active" data-tool="lens">🔎 Lens</button>
+          <button class="tool" data-tool="calibrate">↔ Calibrate box</button>
+          <button class="tool" data-tool="measure">📏 Measure</button>
+          <button class="tool" data-tool="pan">✋ Pan</button>
+        </div>
+        <div class="row3">
+          <button id="rotateLeft" class="secondary">↶ Rotate</button>
+          <button id="resetView" class="secondary">Fit image</button>
+          <button id="exportImage" class="secondary">Save annotated PNG</button>
+        </div>
+      </div>
+
+      <aside class="card controls">
+        <h2>Camera or upload</h2>
+        <button id="startCamera" class="primary">Open phone camera</button>
+        <button id="captureFrame" class="good" disabled>Capture current frame</button>
+        <button id="stopCamera" class="secondary" disabled>Stop camera</button>
+        <label class="upload-label">Upload ECG image
+          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" capture="environment">
+        </label>
+        <div class="small">Live camera access generally requires HTTPS or localhost. The upload control still opens the phone camera on many devices.</div>
+        <hr style="border:0;border-top:1px solid #e2e8f0;width:100%">
+        <h3>Viewer settings</h3>
+        <label>Lens magnification <input id="lensZoom" type="range" min="2" max="6" step="0.5" value="3"></label>
+        <label>Image zoom <input id="imageZoom" type="range" min="1" max="4" step="0.1" value="1"></label>
+        <label>Brightness <input id="brightness" type="range" min="60" max="160" value="100"></label>
+        <label>Contrast <input id="contrast" type="range" min="60" max="200" value="115"></label>
+        <button id="enhance" class="secondary">Auto-enhance tracing</button>
+        <div class="callout warn small"><b>Best photo:</b> no glare, all lead labels visible, calibration pulse visible, page edges included, camera directly above paper, and resolution high enough to see small boxes.</div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="measure" class="section">
+    <div class="grid">
+      <div class="card">
+        <h2>Clickable paper-grid measurements</h2>
+        <p class="small">First calibrate one small ECG box: choose <b>Calibrate box</b>, then click two adjacent vertical grid lines. Next choose a measurement type and click its start and end points.</p>
+        <div class="metric-grid">
+          <div class="metric"><span>Small-box scale</span><b id="scaleMetric">Not set</b></div>
+          <div class="metric"><span>Calculated heart rate</span><b id="rateMetric">—</b></div>
+          <div class="metric"><span>QTc Bazett</span><b id="bazettMetric">—</b></div>
+          <div class="metric"><span>QTc Fridericia</span><b id="fridericiaMetric">—</b></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <label>Paper speed
+            <select id="paperSpeed"><option value="25">25 mm/s</option><option value="50">50 mm/s</option></select>
+          </label>
+          <label>Gain
+            <select id="paperGain"><option value="10">10 mm/mV</option><option value="5">5 mm/mV</option><option value="20">20 mm/mV</option></select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Measurement type
+            <select id="measurementType">
+              <option value="rr">R–R interval / rate</option>
+              <option value="pr">PR interval</option>
+              <option value="qrs">QRS duration</option>
+              <option value="qt">QT interval</option>
+              <option value="st">ST deviation amplitude</option>
+              <option value="generic_time">Other time interval</option>
+              <option value="generic_amp">Other amplitude</option>
+            </select>
+          </label>
+          <label>Small-box width override (px)
+            <input id="pxPerSmall" type="number" min="1" step="0.1" placeholder="Click calibrate first">
+          </label>
+        </div>
+        <button id="activateMeasure" class="primary">Activate measurement tool</button>
+        <div id="measureInstruction" class="callout" style="margin-top:10px">Load an image, calibrate a small box, then measure.</div>
+        <div id="measureLog" class="measure-log"></div>
+        <button id="clearMeasurements" class="secondary" style="margin-top:10px">Clear all measurements</button>
+      </div>
+
+      <aside class="card controls">
+        <h2>Clinical context</h2>
+        <p class="small">Avoid names, dates of birth, medical record numbers, or other identifying details.</p>
+        <div class="row">
+          <label>Age <input id="age" type="number" min="0" max="120" placeholder="e.g., 64"></label>
+          <label>Sex / relevant physiology <select id="sex"><option value="">Not supplied</option><option>Female</option><option>Male</option><option>Pregnant</option><option>Other / not specified</option></select></label>
+        </div>
+        <label>Symptoms <textarea id="symptoms" placeholder="Chest pain, palpitations, fainting, dyspnea, none..."></textarea></label>
+        <label>Timing / duration <input id="duration" placeholder="Started 30 minutes ago, intermittent for 2 days..."></label>
+        <label>Vitals <textarea id="vitals" placeholder="HR, BP, SpO₂, temperature, mental status"></textarea></label>
+        <label>Relevant history <textarea id="history" placeholder="Cardiac history, diabetes, hypertension, PE risk, pacemaker..."></textarea></label>
+        <label>Medications / substances <textarea id="medications" placeholder="Antiarrhythmics, QT-prolonging drugs, digoxin, stimulants..."></textarea></label>
+        <label>Electrolytes / labs <textarea id="electrolytes" placeholder="K, Mg, Ca, troponin, glucose if known"></textarea></label>
+        <label>Machine interpretation <textarea id="deviceReadout" placeholder="Paste the ECG device's automatic reading; agents will challenge it"></textarea></label>
+      </aside>
+    </div>
+  </section>
+
+  <section id="report" class="section">
+    <div class="card">
+      <div class="report-head">
+        <div><h2>Multi-agent ECG review</h2><p class="small">The model compares visible ECG features, your manual measurements, clinical context, technical errors, and alternative explanations.</p></div>
+        <div class="status"><span id="reportState" class="pill">No report</span></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label>Analysis mode
+          <select id="analysisMode"><option value="agents">Multi-agent: signal + differential + safety + synthesis</option><option value="fast">Fast integrated review</option></select>
+        </label>
+        <label>Consent
+          <select id="consent"><option value="">Choose before analysis</option><option value="yes">I understand this is educational and not a diagnosis</option></select>
+        </label>
+      </div>
+      <button id="interpretBtn" class="good" style="margin-top:10px">Interpret uploaded ECG</button>
+      <div id="analysisProgress" class="callout" style="display:none;margin-top:10px" aria-live="polite"></div>
+      <div id="reportOutput" style="margin-top:14px">
+        <div class="callout">No interpretation yet. Capture or upload an ECG, add relevant context, then run the agents.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="discuss" class="section">
+    <div class="grid">
+      <div class="card chat">
+        <h2>Discuss the report with the LLM</h2>
+        <div id="messages" class="messages" aria-live="polite">
+          <div class="msg system">Ask about the differential, measurements, QTc calculation, why the machine reading may be wrong, possible artifacts, general treatment pathways, or what data would increase confidence.</div>
+        </div>
+        <label>Your question <textarea id="chatInput" placeholder="Why could this be atrial flutter instead of SVT? How was QTc calculated? What would make the reading unreliable?"></textarea></label>
+        <button id="sendChat" class="primary">Ask about this ECG</button>
+      </div>
+      <aside class="card">
+        <h2>Useful questions</h2>
+        <div class="controls">
+          <button class="secondary promptBtn">Explain each measured interval and calculation.</button>
+          <button class="secondary promptBtn">What are the strongest alternative diagnoses?</button>
+          <button class="secondary promptBtn">Why might the machine interpretation be wrong?</button>
+          <button class="secondary promptBtn">Which findings would require emergency escalation?</button>
+          <button class="secondary promptBtn">What clinician-directed treatments are typically considered, and what determines the choice?</button>
+          <button class="secondary promptBtn">Which additional leads, labs, or repeat recordings would clarify this?</button>
+        </div>
+        <div class="callout danger small" style="margin-top:12px"><b>Limits:</b> The discussion tool does not prescribe medications, provide patient-specific doses, or replace a 12-lead ECG reviewed with symptoms, serial tracings, labs, and examination.</div>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<footer><div class="footer-card"><b>Privacy and safety:</b> The included server does not write ECG images or session API keys to disk. With AI enabled, the image, clinical context, and request are sent to OpenAI. A key entered in the page is retained only in memory until refresh or close. Do not upload identifying patient information unless the deployment is configured for applicable privacy and compliance requirements.</div></footer>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const canvas = $('ecgCanvas');
+  const ctx = canvas.getContext('2d');
+  const video = $('cameraVideo');
+  const state = {
+    image:null,imageDataUrl:null,rotation:0,zoom:1,brightness:100,contrast:115,
+    offsetX:0,offsetY:0,tool:'lens',lens:{x:0,y:0,show:false,pinned:false},
+    drag:null,points:[],measurements:[],pxPerSmall:null,stream:null,report:null,chatHistory:[],apiConfigured:false,serverConfigured:false,sessionApiKey:'',aiReady:false,model:'gpt-5.6',installPrompt:null
+  };
+
+  const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const listHtml = items => `<ul>${(items || []).map(x=>`<li>${escapeHtml(x)}</li>`).join('') || '<li>Not stated</li>'}</ul>`;
+  const setTab = id => {
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
+    document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id===id));
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+  document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+
+
+  function credentialPayload(){
+    return {apiKey:state.sessionApiKey||'',model:state.model||$('modelInput').value.trim()||'gpt-5.6'};
+  }
+  function updateAiStatus(message=''){
+    state.model=$('modelInput').value.trim()||state.model||'gpt-5.6';
+    state.aiReady=Boolean(state.sessionApiKey||state.serverConfigured);
+    const source=state.sessionApiKey?'Personal session key':state.serverConfigured?'Secure server key':'No key connected';
+    $('apiStatus').className='pill '+(state.aiReady?'live':'demo');
+    $('apiStatus').textContent=state.aiReady?`AI ready • ${state.model}`:'Demo mode • connect key';
+    $('keyDot').className='dot '+(state.aiReady?'ok':'');
+    $('keyStatus').textContent=source;
+    $('keyDetail').textContent=state.aiReady?`${source} will run model ${state.model}. ${state.sessionApiKey?'The personal key is held only until this page is refreshed or closed.':'The key is stored in the server environment, not the browser.'}`:'Add a personal session key below, or start the server with OPENAI_API_KEY.';
+    if(message)$('keyMessage').textContent=message;
+  }
+  function sessionKeyFromInput(){
+    const key=$('apiKeyInput').value.trim();
+    if(key)state.sessionApiKey=key;
+    state.model=$('modelInput').value.trim()||state.model||'gpt-5.6';
+    updateAiStatus();
+    return key;
+  }
+
+  function resizeCanvasForImage(img){
+    const maxW=1800,maxH=1200,scale=Math.min(1,maxW/img.naturalWidth,maxH/img.naturalHeight);
+    canvas.width=Math.max(600,Math.round(img.naturalWidth*scale));
+    canvas.height=Math.max(360,Math.round(img.naturalHeight*scale));
+  }
+
+  function imageTransform(){
+    if(!state.image) return null;
+    const rad=state.rotation*Math.PI/180;
+    const swap=Math.abs(state.rotation%180)===90;
+    const iw=swap?state.image.naturalHeight:state.image.naturalWidth;
+    const ih=swap?state.image.naturalWidth:state.image.naturalHeight;
+    const fit=Math.min(canvas.width/iw,canvas.height/ih)*state.zoom;
+    return {rad,fit,cx:canvas.width/2+state.offsetX,cy:canvas.height/2+state.offsetY};
+  }
+
+  function render(){
+    ctx.save();ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.restore();
+    if(!state.image){canvas.style.display='none';$('emptyState').style.display='block';return;}
+    canvas.style.display='block';$('emptyState').style.display='none';
+    const tr=imageTransform();
+    ctx.save();ctx.translate(tr.cx,tr.cy);ctx.rotate(tr.rad);ctx.scale(tr.fit,tr.fit);
+    ctx.filter=`brightness(${state.brightness}%) contrast(${state.contrast}%)`;
+    ctx.drawImage(state.image,-state.image.naturalWidth/2,-state.image.naturalHeight/2);
+    ctx.restore();ctx.filter='none';
+
+    state.measurements.forEach((m,i)=>drawMeasurement(m,i));
+    if(state.points.length){
+      ctx.fillStyle='#0f62fe';state.points.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill()});
+    }
+    if(state.tool==='lens'&&state.lens.show) drawLens(state.lens.x,state.lens.y);
+  }
+
+  function drawLens(x,y){
+    if(!state.image)return;
+    const radius=Math.min(100,canvas.width*.12),zoom=Number($('lensZoom').value);
+    ctx.save();ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.clip();
+    ctx.translate(x,y);ctx.scale(zoom,zoom);ctx.translate(-x,-y);
+    const tr=imageTransform();ctx.translate(tr.cx,tr.cy);ctx.rotate(tr.rad);ctx.scale(tr.fit,tr.fit);
+    ctx.filter=`brightness(${state.brightness}%) contrast(${Math.min(220,state.contrast+20)}%)`;
+    ctx.drawImage(state.image,-state.image.naturalWidth/2,-state.image.naturalHeight/2);ctx.restore();ctx.filter='none';
+    ctx.save();ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.strokeStyle='#0f62fe';ctx.lineWidth=5;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x+radius*.7,y+radius*.7);ctx.lineTo(x+radius*1.25,y+radius*1.25);ctx.strokeStyle='#0f62fe';ctx.lineWidth=10;ctx.lineCap='round';ctx.stroke();ctx.restore();
+  }
+
+  function drawMeasurement(m,index){
+    const colors=['#0f62fe','#15803d','#b45309','#7c3aed','#b91c1c'];const color=colors[index%colors.length];
+    ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(m.a.x,m.a.y);ctx.lineTo(m.b.x,m.b.y);ctx.stroke();
+    [m.a,m.b].forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill()});
+    const mx=(m.a.x+m.b.x)/2,my=(m.a.y+m.b.y)/2;ctx.font='bold 15px system-ui';const text=m.label+' '+m.display;const w=ctx.measureText(text).width+16;
+    ctx.fillStyle='rgba(255,255,255,.92)';ctx.fillRect(mx-w/2,my-27,w,24);ctx.strokeStyle=color;ctx.strokeRect(mx-w/2,my-27,w,24);ctx.fillStyle=color;ctx.fillText(text,mx-w/2+8,my-10);ctx.restore();
+  }
+
+  function canvasPoint(ev){const r=canvas.getBoundingClientRect();return {x:(ev.clientX-r.left)*canvas.width/r.width,y:(ev.clientY-r.top)*canvas.height/r.height};}
+
+  canvas.addEventListener('pointerdown',ev=>{
+    if(!state.image)return;const p=canvasPoint(ev);
+    if(state.tool==='lens'){state.lens={x:p.x,y:p.y,show:true,pinned:!state.lens.pinned};render();return;}
+    if(state.tool==='pan'){state.drag={x:ev.clientX,y:ev.clientY,ox:state.offsetX,oy:state.offsetY};canvas.setPointerCapture(ev.pointerId);return;}
+    state.points.push(p);render();
+    if(state.points.length===2){
+      if(state.tool==='calibrate') calibrate(state.points[0],state.points[1]);
+      if(state.tool==='measure') addMeasurement(state.points[0],state.points[1]);
+      state.points=[];render();
+    }
+  });
+  canvas.addEventListener('pointermove',ev=>{
+    if(!state.image)return;
+    if(state.tool==='lens'&&!state.lens.pinned){const p=canvasPoint(ev);state.lens={x:p.x,y:p.y,show:true,pinned:false};render();}
+    if(state.tool==='pan'&&state.drag){state.offsetX=state.drag.ox+(ev.clientX-state.drag.x)*canvas.width/canvas.clientWidth;state.offsetY=state.drag.oy+(ev.clientY-state.drag.y)*canvas.height/canvas.clientHeight;render();}
+  });
+  canvas.addEventListener('pointerup',()=>state.drag=null);
+  canvas.addEventListener('pointerleave',()=>{if(state.tool==='lens'&&!state.lens.pinned){state.lens.show=false;render();}});
+
+  function setTool(tool){state.tool=tool;state.points=[];document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));
+    const messages={lens:'Move over the tracing and click to pin or unpin the magnifier.',calibrate:'Click two adjacent small-box grid lines.',measure:'Click the start and end of the selected interval or amplitude.',pan:'Drag the image to reposition it.'};
+    $('measureInstruction').textContent=messages[tool]||'';render();
+  }
+  document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
+
+  function calibrate(a,b){
+    const px=Math.hypot(b.x-a.x,b.y-a.y);if(px<2)return;
+    state.pxPerSmall=px;$('pxPerSmall').value=px.toFixed(2);$('scaleMetric').textContent=px.toFixed(1)+' px';
+    state.measurements.push({type:'calibration',label:'1 box',display:px.toFixed(1)+' px',a,b,value:px});updateMeasurementUI();
+  }
+
+  function timePerSmallMs(){return 1000/Number($('paperSpeed').value);}
+  function addMeasurement(a,b){
+    const pxSmall=Number($('pxPerSmall').value)||state.pxPerSmall;if(!pxSmall){$('measureInstruction').textContent='Calibrate one small box first.';return;}
+    state.pxPerSmall=pxSmall;const type=$('measurementType').value;const dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y);let value,display,label;
+    if(type==='st'||type==='generic_amp'){
+      value=((a.y-b.y)/pxSmall)/Number($('paperGain').value);label=type==='st'?'ST':'Amplitude';display=(value>=0?'+':'')+value.toFixed(2)+' mV';
+    }else{
+      value=(dx/pxSmall)*timePerSmallMs();label=({rr:'RR',pr:'PR',qrs:'QRS',qt:'QT',generic_time:'Time'})[type];display=Math.round(value)+' ms';
+    }
+    state.measurements.push({type,label,display,a,b,value});updateMeasurementUI();
+  }
+
+  function manualData(){
+    const latest={};state.measurements.forEach(m=>{if(m.type!=='calibration')latest[m.type]=m.value});
+    const rr=latest.rr||null,qt=latest.qt||null;const rate=rr?60000/rr:null;
+    const rrSec=rr?rr/1000:null,qtSec=qt?qt/1000:null;
+    const bazett=rrSec&&qtSec?qtSec/Math.sqrt(rrSec)*1000:null;
+    const fridericia=rrSec&&qtSec?qtSec/Math.cbrt(rrSec)*1000:null;
+    return {paper_speed_mm_s:Number($('paperSpeed').value),gain_mm_mV:Number($('paperGain').value),pixels_per_small_box:state.pxPerSmall,rr_ms:rr,rate_bpm:rate,pr_ms:latest.pr||null,qrs_ms:latest.qrs||null,qt_ms:qt,st_mV:latest.st||null,qtc_bazett_ms:bazett,qtc_fridericia_ms:fridericia,measurement_log:state.measurements.map(m=>({type:m.type,value:m.value,display:m.display}))};
+  }
+
+  function updateMeasurementUI(){
+    const m=manualData();$('scaleMetric').textContent=m.pixels_per_small_box?m.pixels_per_small_box.toFixed(1)+' px':'Not set';$('rateMetric').textContent=m.rate_bpm?Math.round(m.rate_bpm)+' bpm':'—';$('bazettMetric').textContent=m.qtc_bazett_ms?Math.round(m.qtc_bazett_ms)+' ms':'—';$('fridericiaMetric').textContent=m.qtc_fridericia_ms?Math.round(m.qtc_fridericia_ms)+' ms':'—';
+    $('measureLog').innerHTML=state.measurements.map((x,i)=>`<div class="measure-item"><span><b>${escapeHtml(x.label)}</b> — ${escapeHtml(x.display)}</span><button data-remove="${i}">Remove</button></div>`).join('');
+    document.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>{state.measurements.splice(Number(b.dataset.remove),1);updateMeasurementUI();render()}));render();
+  }
+  $('pxPerSmall').addEventListener('input',()=>{state.pxPerSmall=Number($('pxPerSmall').value)||null;updateMeasurementUI()});
+  $('paperSpeed').addEventListener('change',updateMeasurementUI);$('paperGain').addEventListener('change',updateMeasurementUI);
+  $('activateMeasure').addEventListener('click',()=>setTool('measure'));
+  $('clearMeasurements').addEventListener('click',()=>{state.measurements=[];state.pxPerSmall=null;$('pxPerSmall').value='';updateMeasurementUI()});
+
+  async function loadBlob(blob){
+    if(!blob||!blob.type.startsWith('image/')){alert('Choose a PNG, JPEG, or WebP ECG image.');return;}
+    const url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{state.image=img;resizeCanvasForImage(img);state.rotation=0;state.zoom=1;state.offsetX=0;state.offsetY=0;$('imageZoom').value=1;state.imageDataUrl=compressImage(img);$('viewerBadge').textContent=`ECG loaded • ${img.naturalWidth}×${img.naturalHeight}`;render();URL.revokeObjectURL(url)};img.onerror=()=>alert('The image could not be opened.');img.src=url;
+  }
+
+  function compressImage(img){
+    const c=document.createElement('canvas');const max=1800,scale=Math.min(1,max/img.naturalWidth,max/img.naturalHeight);c.width=Math.round(img.naturalWidth*scale);c.height=Math.round(img.naturalHeight*scale);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.9);
+  }
+
+  $('fileInput').addEventListener('change',e=>loadBlob(e.target.files[0]));
+  $('startCamera').addEventListener('click',async()=>{
+    try{state.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});video.srcObject=state.stream;await video.play();video.style.display='block';canvas.style.display='none';$('emptyState').style.display='none';$('captureFrame').disabled=false;$('stopCamera').disabled=false;$('viewerBadge').textContent='Live camera';}
+    catch(err){alert('Camera could not start. Use HTTPS or localhost, allow camera permission, or use the upload control.\n\n'+err.message)}
+  });
+  $('captureFrame').addEventListener('click',()=>{
+    const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;c.getContext('2d').drawImage(video,0,0);c.toBlob(blob=>{loadBlob(blob);stopCamera()},'image/jpeg',.94);
+  });
+  function stopCamera(){if(state.stream)state.stream.getTracks().forEach(t=>t.stop());state.stream=null;video.pause();video.srcObject=null;video.style.display='none';$('captureFrame').disabled=true;$('stopCamera').disabled=true;render()}
+  $('stopCamera').addEventListener('click',stopCamera);
+  $('rotateLeft').addEventListener('click',()=>{state.rotation=(state.rotation-90)%360;render()});
+  $('resetView').addEventListener('click',()=>{state.zoom=1;state.offsetX=state.offsetY=0;$('imageZoom').value=1;render()});
+  $('imageZoom').addEventListener('input',e=>{state.zoom=Number(e.target.value);render()});
+  $('brightness').addEventListener('input',e=>{state.brightness=Number(e.target.value);render()});
+  $('contrast').addEventListener('input',e=>{state.contrast=Number(e.target.value);render()});
+  $('lensZoom').addEventListener('input',render);
+  $('enhance').addEventListener('click',()=>{state.brightness=105;state.contrast=155;$('brightness').value=105;$('contrast').value=155;render()});
+  $('exportImage').addEventListener('click',()=>{if(!state.image)return;render();const a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='ekg-annotated.png';a.click()});
+
+  function analysisImageDataUrl(){
+    if(!state.image)return null;
+    const rotation=((state.rotation%360)+360)%360,swap=rotation===90||rotation===270;
+    const c=document.createElement('canvas');const max=1800;let w=swap?state.image.naturalHeight:state.image.naturalWidth,h=swap?state.image.naturalWidth:state.image.naturalHeight;const scale=Math.min(1,max/w,max/h);c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.translate(c.width/2,c.height/2);x.rotate(rotation*Math.PI/180);x.scale(scale,scale);x.drawImage(state.image,-state.image.naturalWidth/2,-state.image.naturalHeight/2);return c.toDataURL('image/jpeg',.9);
+  }
+
+  function clinicalContext(){return {age:$('age').value,sex:$('sex').value,symptoms:$('symptoms').value,duration:$('duration').value,vitals:$('vitals').value,history:$('history').value,medications:$('medications').value,electrolytes:$('electrolytes').value,device_readout:$('deviceReadout').value};}
+
+  function demoReport(){
+    const m=manualData();return {
+      image_quality:{score:0,limitations:['Demo mode cannot visually interpret the uploaded tracing.','Connect an API key in the app or configure OPENAI_API_KEY on the server for image analysis.'],retake_instructions:['Ensure the whole ECG page and calibration pulse are visible.','Use even lighting and avoid perspective distortion.']},
+      urgency:{level:'uncertain',reasons:['No live AI visual analysis is available in demo mode.'],immediate_action:'Use symptoms and clinical condition to determine urgency; call emergency services for red-flag symptoms.'},
+      measurements:{rate_bpm:m.rate_bpm,rhythm_regular:null,pr_ms:m.pr_ms,qrs_ms:m.qrs_ms,qt_ms:m.qt_ms,qtc_ms:m.qtc_fridericia_ms||m.qtc_bazett_ms,axis:'Not assessed in demo mode',st_t_findings:m.st_mV!=null?[`User-measured ST deviation: ${m.st_mV.toFixed(2)} mV`]:[],confidence_notes:['Values are based only on user clicks and paper calibration.']},
+      primary_interpretation:{label:'Visual interpretation unavailable in demo mode',confidence:0,supporting_features:[],conflicting_features:['No model vision response was obtained.']},
+      differential:[],why_the_interpretation_may_be_wrong:['Manual clicks may not align with waveform onset/offset.','Paper speed, gain, image perspective, and grid calibration may be wrong.'],clinical_context_links:[],suggested_next_steps:['Connect a personal session key or configure the server-side API key.','Have a trained clinician review the original ECG and clinical context.'],treatment_discussion:{clinician_directed_options:['Treatment depends on confirmed rhythm, symptoms, hemodynamic stability, and underlying cause.'],avoid_until_reviewed:['Do not use a photo-based interpretation to self-start or change prescription medication.'],treatment_caveat:'Educational only; no individualized treatment recommendation is made.'},
+      calculations:[...(m.rate_bpm?[{name:'Heart rate',formula:'60,000 ÷ RR (ms)',inputs:`RR = ${Math.round(m.rr_ms)} ms`,result:`${Math.round(m.rate_bpm)} bpm`,interpretation:'Calculated from the clicked R–R interval.'}]:[]),...(m.qtc_bazett_ms?[{name:'QTc Bazett',formula:'QT ÷ √RR',inputs:`QT = ${Math.round(m.qt_ms)} ms; RR = ${Math.round(m.rr_ms)} ms`,result:`${Math.round(m.qtc_bazett_ms)} ms`,interpretation:'Bazett may overcorrect at faster rates and undercorrect at slower rates.'},{name:'QTc Fridericia',formula:'QT ÷ ∛RR',inputs:`QT = ${Math.round(m.qt_ms)} ms; RR = ${Math.round(m.rr_ms)} ms`,result:`${Math.round(m.qtc_fridericia_ms)} ms`,interpretation:'Alternative rate correction based on the cube root of RR.'}]:[])],questions_for_clinician:['Is the ECG technically adequate and correctly labeled?','Are there symptoms or serial changes?'],education_summary:'Demo mode provides measurement calculations only, not ECG diagnosis.',disclaimer:'Educational measurement aid only; not a medical diagnosis.'};
+  }
+
+  function urgencyPill(level){const map={emergency:'danger',urgent:'danger',prompt_review:'demo',routine:'live',uncertain:'demo'};return `<span class="pill ${map[level]||''}">${escapeHtml(level.replace('_',' '))}</span>`;}
+  function renderReport(r){
+    state.report=r;const p=r.primary_interpretation||{},u=r.urgency||{},me=r.measurements||{};
+    $('reportState').className='pill '+(u.level==='emergency'||u.level==='urgent'?'danger':u.level==='routine'?'live':'demo');$('reportState').textContent=u.level||'Report ready';
+    const diffs=(r.differential||[]).map(d=>`<div class="diff"><b>${escapeHtml(d.diagnosis)}</b><div class="small"><b>Why possible</b>${listHtml(d.why_possible)}<b>Why less likely</b>${listHtml(d.why_less_likely)}<b>Best discriminator:</b> ${escapeHtml(d.discriminator)}</div></div>`).join('')||'<p class="small">No differential supplied.</p>';
+    const calcs=(r.calculations||[]).map(c=>`<div class="diff"><b>${escapeHtml(c.name)}</b><div class="small">${escapeHtml(c.formula)}<br><b>Inputs:</b> ${escapeHtml(c.inputs)}<br><b>Result:</b> ${escapeHtml(c.result)}<br>${escapeHtml(c.interpretation)}</div></div>`).join('')||'<p class="small">No calculations supplied.</p>';
+    const agents=(r.agent_reviews||[]).map(a=>`<div class="diff"><b>${escapeHtml(a.role)} — ${a.confidence}%</b>${listHtml(a.findings)}<div class="small"><b>Concerns:</b>${listHtml(a.concerns)}<b>Conclusion:</b> ${escapeHtml(a.conclusion)}</div></div>`).join('');
+    $('reportOutput').innerHTML=`
+      <div class="callout ${u.level==='emergency'||u.level==='urgent'?'danger':u.level==='prompt_review'?'warn':''}"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>Urgency</b>${urgencyPill(u.level||'uncertain')}</div>${listHtml(u.reasons)}<b>Action:</b> ${escapeHtml(u.immediate_action)}</div>
+      <div class="report-grid">
+        <div class="report-block"><h3>Primary interpretation</h3><b>${escapeHtml(p.label)}</b><div class="confidence"><i style="width:${Math.max(0,Math.min(100,p.confidence||0))}%"></i></div><p class="small">Confidence ${escapeHtml(p.confidence)}%</p><b>Supporting features</b>${listHtml(p.supporting_features)}<b>Conflicting features</b>${listHtml(p.conflicting_features)}</div>
+        <div class="report-block"><h3>Image quality</h3><b>${escapeHtml(r.image_quality?.score)} / 100</b><h4>Limitations</h4>${listHtml(r.image_quality?.limitations)}<h4>Retake guidance</h4>${listHtml(r.image_quality?.retake_instructions)}</div>
+        <div class="report-block"><h3>Measurements</h3><ul><li>Rate: ${escapeHtml(me.rate_bpm??'uncertain')} bpm</li><li>Regular: ${escapeHtml(me.rhythm_regular??'uncertain')}</li><li>PR: ${escapeHtml(me.pr_ms??'uncertain')} ms</li><li>QRS: ${escapeHtml(me.qrs_ms??'uncertain')} ms</li><li>QT: ${escapeHtml(me.qt_ms??'uncertain')} ms</li><li>QTc: ${escapeHtml(me.qtc_ms??'uncertain')} ms</li><li>Axis: ${escapeHtml(me.axis||'uncertain')}</li></ul><b>ST/T</b>${listHtml(me.st_t_findings)}${listHtml(me.confidence_notes)}</div>
+        <div class="report-block"><h3>Why this may be wrong</h3>${listHtml(r.why_the_interpretation_may_be_wrong)}<h3 style="margin-top:12px">Clinical links</h3>${listHtml(r.clinical_context_links)}</div>
+        <div class="report-block full"><h3>Differential diagnosis</h3>${diffs}</div>
+        <div class="report-block"><h3>Suggested next steps</h3>${listHtml(r.suggested_next_steps)}<h3 style="margin-top:12px">Questions for clinician</h3>${listHtml(r.questions_for_clinician)}</div>
+        <div class="report-block"><h3>Treatment discussion</h3><b>Clinician-directed options</b>${listHtml(r.treatment_discussion?.clinician_directed_options)}<b>Avoid until reviewed</b>${listHtml(r.treatment_discussion?.avoid_until_reviewed)}<p class="small">${escapeHtml(r.treatment_discussion?.treatment_caveat)}</p></div>
+        <div class="report-block full"><h3>Calculations</h3>${calcs}</div>
+        ${agents?`<div class="report-block full"><h3>Independent agent reviews</h3>${agents}</div>`:''}
+        <div class="report-block full"><h3>Education summary</h3><p>${escapeHtml(r.education_summary)}</p><p class="small"><b>Disclaimer:</b> ${escapeHtml(r.disclaimer)}</p></div>
+      </div>`;
+  }
+
+  $('interpretBtn').addEventListener('click',async()=>{
+    if(!state.imageDataUrl){alert('Capture or upload an ECG image first.');setTab('capture');return;}
+    if($('consent').value!=='yes'){alert('Confirm the educational-use consent first.');return;}
+    const btn=$('interpretBtn'),progress=$('analysisProgress');btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Analyzing ECG';progress.style.display='block';progress.textContent=$('analysisMode').value==='agents'?'Running signal, differential, and safety agents, then synthesizing disagreements…':'Running integrated ECG review…';
+    try{
+      if(!state.aiReady){renderReport(demoReport());progress.textContent='Demo report generated. Open Connect AI and add a key for visual interpretation.';return;}
+      const response=await fetch('/api/interpret',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:analysisImageDataUrl(),context:clinicalContext(),manual:manualData(),mode:$('analysisMode').value,...credentialPayload()})});const data=await response.json();if(!response.ok)throw new Error(data.error||'Analysis failed');renderReport(data.report);progress.textContent=`Report completed with ${data.model}. Review limitations and urgency before relying on any interpretation.`;
+    }catch(err){progress.className='callout danger';progress.textContent='Analysis error: '+err.message;}
+    finally{btn.disabled=false;btn.textContent='Interpret uploaded ECG';setTab('report')}
+  });
+
+  function addMessage(kind,text){const div=document.createElement('div');div.className='msg '+kind;div.textContent=text;$('messages').appendChild(div);$('messages').scrollTop=$('messages').scrollHeight;}
+  async function sendChat(){
+    const q=$('chatInput').value.trim();if(!q)return;addMessage('user',q);$('chatInput').value='';state.chatHistory.push({role:'user',content:q});
+    if(!state.report){addMessage('system','Run an ECG interpretation first so the discussion has a report to analyze.');return;}
+    const btn=$('sendChat');btn.disabled=true;btn.textContent='Thinking…';
+    try{
+      if(!state.aiReady){const answer='Demo mode can only show calculations already present in the report. Open Connect AI and add a key to discuss differential diagnosis, interpretation errors, and treatment pathways.';addMessage('ai',answer);return;}
+      const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,report:state.report,history:state.chatHistory,image:analysisImageDataUrl(),...credentialPayload()})});const data=await response.json();if(!response.ok)throw new Error(data.error||'Chat failed');const text=`${data.answer}\n\nKey reasoning:\n• ${(data.key_reasoning||[]).join('\n• ')}\n\nUncertainty:\n• ${(data.uncertainty||[]).join('\n• ')}\n\nSafety: ${data.safety_note}`;addMessage('ai',text);state.chatHistory.push({role:'assistant',content:text});
+    }catch(err){addMessage('system','Discussion error: '+err.message)}finally{btn.disabled=false;btn.textContent='Ask about this ECG'}
+  }
+  $('sendChat').addEventListener('click',sendChat);$('chatInput').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')sendChat()});
+  document.querySelectorAll('.promptBtn').forEach(b=>b.addEventListener('click',()=>{$('chatInput').value=b.textContent;setTab('discuss');$('chatInput').focus()}));
+
+  $('toggleKey').addEventListener('click',()=>{
+    const show=$('apiKeyInput').type==='password';$('apiKeyInput').type=show?'text':'password';$('toggleKey').textContent=show?'Hide':'Show';
+  });
+  $('useApiKey').addEventListener('click',()=>{
+    const key=sessionKeyFromInput();
+    if(!key){$('keyMessage').textContent=state.serverConfigured?'The secure server key is already available.':'Enter an API key first.';return;}
+    $('apiKeyInput').value='';
+    $('keyMessage').textContent='Personal key loaded for this session only. You can test it now or proceed to capture an ECG.';
+  });
+  $('forgetApiKey').addEventListener('click',()=>{
+    state.sessionApiKey='';$('apiKeyInput').value='';updateAiStatus('Personal session key cleared. The app will use the secure server key if one is configured.');
+  });
+  $('modelInput').addEventListener('change',()=>updateAiStatus('Model selection updated. Test the connection if you are unsure whether your API project can access it.'));
+  $('testApiKey').addEventListener('click',async()=>{
+    sessionKeyFromInput();
+    if(!state.aiReady){$('keyMessage').textContent='Enter a personal key or configure a server key first.';return;}
+    const btn=$('testApiKey');btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Testing';
+    try{
+      const response=await fetch('/api/test-key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentialPayload())});
+      const data=await response.json();if(!response.ok)throw new Error(data.error||'Connection test failed');
+      $('apiKeyInput').value='';updateAiStatus(`Connection successful. ${data.model} is ready for ECG image analysis.`);
+    }catch(err){$('keyMessage').textContent='Connection error: '+err.message;}
+    finally{btn.disabled=false;btn.textContent='Test connection'}
+  });
+  $('goCapture').addEventListener('click',()=>setTab('capture'));
+
+  function updateOnlineStatus(){
+    const online=navigator.onLine;$('onlineStatus').className='pill '+(online?'live':'danger');$('onlineStatus').textContent=online?'Online':'Offline • measurements only';
+  }
+  window.addEventListener('online',updateOnlineStatus);window.addEventListener('offline',updateOnlineStatus);
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();state.installPrompt=e;$('installBtn').hidden=false;});
+  async function installApp(){
+    if(state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;$('installBtn').hidden=true;return;}
+    $('keyMessage').textContent='Install option: in Safari use Share → Add to Home Screen; in Chrome/Edge use the browser menu → Install app or Add to Home screen.';
+  }
+  $('installBtn').addEventListener('click',installApp);$('installBtnPanel').addEventListener('click',installApp);
+  window.addEventListener('appinstalled',()=>{$('keyMessage').textContent='EKG Lens AI was installed successfully.';$('installBtn').hidden=true;});
+
+  async function init(){
+    render();updateMeasurementUI();updateOnlineStatus();
+    try{
+      const r=await fetch('/api/status');const d=await r.json();state.apiConfigured=d.configured;state.serverConfigured=d.configured;state.model=d.model||state.model;$('modelInput').value=state.model;updateAiStatus();
+    }catch{state.serverConfigured=false;updateAiStatus('Local server status is unavailable. Viewer and measurements still work, but AI requests require the included server.');}
+    if('serviceWorker' in navigator && location.protocol!=='file:')navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
+  }
+  init();
+})();
+</script>
+</body>
+</html>

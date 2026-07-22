@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>EKG Master Lab Pro — Practical ECG Interpretation</title>
+<style>
+:root{
+ --navy:#07172d;--blue:#0f62fe;--sky:#38bdf8;--green:#16a34a;--red:#dc2626;--orange:#f59e0b;--purple:#7c3aed;
+ --bg:#f3f8ff;--card:#fff;--ink:#102033;--muted:#64748b;--line:#dbeafe;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:linear-gradient(180deg,#eaf5ff 0%,#fff 45%,#f8fbff 100%);color:var(--ink)}
+header{background:radial-gradient(circle at 10% 20%,#194b91,#07172d 65%);color:#fff;padding:30px 22px;border-bottom:5px solid var(--sky)}
+header h1{margin:0;font-size:34px;letter-spacing:.2px}
+header p{margin:8px 0 0;color:#cfe8ff;font-size:15px;max-width:1150px}
+.app{display:grid;grid-template-columns:330px 1fr;gap:18px;max-width:1580px;margin:auto;padding:18px}
+.panel{background:rgba(255,255,255,.96);border:1px solid #d8e6f5;border-radius:18px;box-shadow:0 8px 26px rgba(15,35,80,.08);padding:16px}
+.sidebar{position:sticky;top:12px;align-self:start}
+h2,h3{margin:0 0 12px}
+hr{border:0;border-top:1px solid #e5edf8;margin:14px 0}
+select,button,input{width:100%;padding:11px 12px;border-radius:12px;border:1px solid #cbd5e1;font-size:14px}
+button{cursor:pointer;border:0;background:var(--blue);color:white;font-weight:800;margin-top:8px;transition:.15s}
+button:hover{filter:brightness(.96);transform:translateY(-1px)}
+button.secondary{background:#e2e8f0;color:#0f172a}
+button.green{background:var(--green)}
+button.purple{background:var(--purple)}
+button.red{background:var(--red)}
+.small{font-size:12px;color:var(--muted);line-height:1.45}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{background:#f8fbff;border:1px solid #dbeafe;border-radius:14px;padding:12px}
+.stat b{font-size:20px;color:#0f3b78}
+#stripWrap{background:#fff;border-radius:18px;border:1px solid #fecaca;overflow:hidden}
+canvas{width:100%;height:340px;display:block;background:#fff}
+.controls{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:12px}
+.badge{display:inline-flex;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;margin:4px 4px 4px 0}
+.b-blue{background:#dbeafe;color:#1d4ed8}.b-green{background:#dcfce7;color:#166534}.b-red{background:#fee2e2;color:#991b1b}.b-orange{background:#ffedd5;color:#9a3412}.b-purple{background:#ede9fe;color:#5b21b6}.b-slate{background:#e2e8f0;color:#334155}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+.tab{width:auto;background:#eaf2ff;color:#0f3b78;border:1px solid #bfdbfe}
+.tab.active{background:#0f3b78;color:white}
+.section{display:none}.section.active{display:block}
+.explain{border-left:5px solid #0f62fe;background:#f0f7ff;border-radius:12px;padding:13px;margin-top:12px;line-height:1.55}
+.warn{border-left-color:#dc2626;background:#fff1f2}
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th{background:#0f3b78;color:white;text-align:left;padding:10px}
+.table td{border-bottom:1px solid #e2e8f0;padding:9px;vertical-align:top}
+.choice{background:#f8fafc;border:1px solid #dbeafe;border-radius:14px;padding:12px;margin:8px 0;cursor:pointer}
+.choice:hover{background:#eef6ff}.choice.correct{border-color:#16a34a;background:#dcfce7}.choice.wrong{border-color:#dc2626;background:#fee2e2}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card{background:#f8fbff;border:1px solid #dbeafe;border-radius:16px;padding:14px;min-height:145px}
+.card h3{color:#0f3b78}
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:stretch}
+.step{background:#f8fbff;border:1px solid #dbeafe;border-radius:14px;padding:12px;text-align:center}
+.big{font-size:28px;font-weight:900;color:#0f3b78}
+.footer{max-width:1580px;margin:0 auto 30px;padding:0 18px}
+@media(max-width:1000px){.app{grid-template-columns:1fr}.grid4,.controls,.cards,.flow{grid-template-columns:1fr}.sidebar{position:static}}
+</style>
+</head>
+<body>
+<header>
+<h1>EKG Master Lab Pro</h1>
+<p>Standalone ECG interpretation simulator built from the uploaded practical electrocardiography text atlas: conduction system, 12-lead recording, normal ECG intervals, bradyarrhythmias, tachyarrhythmias, WPW, bundle/fascicular blocks, pacemakers, ischemia, hypertrophy, pericarditis, pulmonary embolism, and electrolyte/drug patterns.</p>
+</header>
+
+<main class="app">
+<aside class="panel sidebar">
+<h2>Case Controls</h2>
+<label class="small">Mode</label>
+<select id="mode">
+<option value="training">Training: show explanation</option>
+<option value="exam">Exam: hide answer first</option>
+<option value="speed">Speed drill</option>
+</select>
+<label class="small">Rhythm / ECG scenario</label>
+<select id="rhythmSelect"></select>
+<button onclick="loadSelected()">Load Selected</button>
+<button class="purple" onclick="randomCase()">Random Case</button>
+<button class="green" onclick="startQuiz()">Start Mastery Quiz</button>
+<button class="secondary" onclick="togglePause()">Pause / Play Strip</button>
+<hr>
+<label class="small">Strip speed</label><input type="range" min="20" max="110" value="55" oninput="speed=this.value/55">
+<label class="small">Artifact / noise</label><input type="range" min="0" max="40" value="5" oninput="noiseLevel=this.value/100">
+<label class="small">Gain</label><input type="range" min="60" max="180" value="100" oninput="gain=this.value/100">
+<hr>
+<h3>Universal ECG checklist</h3>
+<ol class="small">
+<li>Confirm patient + lead quality + calibration.</li>
+<li>Rate and regularity.</li>
+<li>P waves and atrial activity.</li>
+<li>PR interval and AV conduction.</li>
+<li>QRS width, axis, R progression.</li>
+<li>ST segment, T wave, QT/QTc.</li>
+<li>Clinical danger: unstable patient beats perfect tracing.</li>
+</ol>
+</aside>
+
+<section>
+<div class="panel">
+<div class="grid4">
+<div class="stat"><span class="small">Current case</span><br><b id="rName"></b></div>
+<div class="stat"><span class="small">Rate</span><br><b id="rRate"></b></div>
+<div class="stat"><span class="small">QRS / axis clue</span><br><b id="rQrs"></b></div>
+<div class="stat"><span class="small">Risk</span><br><b id="rRisk"></b></div>
+</div>
+<div id="stripWrap" style="margin-top:14px"><canvas id="ekg" width="1300" height="340"></canvas></div>
+<div class="controls">
+<button onclick="mark('Rate')">Rate</button>
+<button onclick="mark('Rhythm')">Rhythm</button>
+<button onclick="mark('Atrial')">P/Atrial</button>
+<button onclick="mark('Conduction')">PR/QRS</button>
+<button onclick="mark('STT')">ST/T/QT</button>
+<button class="red" onclick="mark('Danger')">Danger</button>
+</div>
+</div>
+
+<div class="panel" style="margin-top:18px">
+<div class="tabs">
+<button class="tab active" onclick="showTab('interpret',this)">Interpret</button>
+<button class="tab" onclick="showTab('quiz',this)">Quiz</button>
+<button class="tab" onclick="showTab('library',this)">Rhythm Atlas</button>
+<button class="tab" onclick="showTab('leads',this)">12-Lead Map</button>
+<button class="tab" onclick="showTab('method',this)">Expert Method</button>
+<button class="tab" onclick="showTab('examTips',this)">NHA Tips</button>
+</div>
+
+<div id="interpret" class="section active">
+<h2 id="title"></h2>
+<div id="badges"></div>
+<div class="explain" id="explanation"></div>
+<div class="explain warn" id="clinical"></div>
+</div>
+
+<div id="quiz" class="section">
+<h2>Mastery Quiz</h2>
+<p class="small">Identify the strip, then explain why. Your goal is ≥85% with a consistent checklist.</p>
+<div id="quizBox"></div>
+<button class="green" onclick="nextQuestion()">Next Question</button>
+<button class="secondary" onclick="resetScore()">Reset Score</button>
+<p><b>Score:</b> <span id="score">0</span>/<span id="total">0</span> — <b>Level:</b> <span id="level">Beginner</span></p>
+</div>
+
+<div id="library" class="section">
+<h2>Book-Based ECG Scenario Atlas</h2>
+<table class="table" id="libTable"></table>
+</div>
+
+<div id="leads" class="section">
+<h2>12-Lead Placement and Wall Map</h2>
+<div class="cards">
+<div class="card"><h3>Limb Leads</h3><p><b>I:</b> LA+ / RA−. <b>II:</b> LL+ / RA−. <b>III:</b> LL+ / LA−. Inferior wall is II, III, aVF. Lateral wall is I, aVL.</p></div>
+<div class="card"><h3>Augmented Leads</h3><p><b>aVR</b> usually negative. <b>aVL</b> left high lateral. <b>aVF</b> inferior. Use the hexaxial system to judge axis.</p></div>
+<div class="card"><h3>Precordial Leads</h3><p><b>V1</b> 4th ICS right sternal border. <b>V2</b> 4th ICS left sternal. <b>V4</b> 5th ICS midclavicular. <b>V5-V6</b> lateral.</p></div>
+<div class="card"><h3>V1–V3</h3><p>Right ventricle and septum. Useful for RBBB, anterior ischemia, Brugada-like patterns, and posterior reciprocal clues.</p></div>
+<div class="card"><h3>V4–V6</h3><p>V4 apex; V5–V6 lateral wall. Watch R-wave progression and transition zone around V3–V4.</p></div>
+<div class="card"><h3>Extra Leads</h3><p>V7–V9 posterior wall. V3R–V4R right ventricle. Useful when inferior STEMI or posterior MI is suspected.</p></div>
+</div>
+</div>
+
+<div id="method" class="section">
+<h2>Expert Interpretation Pathway</h2>
+<div class="flow">
+<div class="step"><div class="big">1</div><b>Quality</b><p class="small">Name, calibration 10 mm/mV, speed 25 mm/s, artifact, lead placement.</p></div>
+<div class="step"><div class="big">2</div><b>Rhythm</b><p class="small">Sinus? P before every QRS? Regular? Escape or ectopic?</p></div>
+<div class="step"><div class="big">3</div><b>Intervals</b><p class="small">PR 120–200 ms, QRS normally 60–100 ms, QTc usually &lt;440 ms adult.</p></div>
+<div class="step"><div class="big">4</div><b>Morphology</b><p class="small">Axis, hypertrophy, R progression, bundle/fascicular blocks.</p></div>
+<div class="step"><div class="big">5</div><b>Ischemia</b><p class="small">J point, ST segment, T waves, reciprocal changes, clinical symptoms.</p></div>
+</div>
+<div class="explain"><b>Memory rule:</b> “Regular P, normal PR, narrow QRS” = think sinus. “No P + irregularly irregular” = think AF. “Wide and fast” = VT until proven otherwise. “ST elevation + symptoms” = emergency escalation.</div>
+</div>
+
+<div id="examTips" class="section">
+<h2>NHA EKG Exam Tips</h2>
+<div class="cards">
+<div class="card"><h3>Must-memorize values</h3><p>Paper speed 25 mm/s. Small box = 0.04 s. Large box = 0.20 s. PR = 0.12–0.20 s. QRS usually &lt;0.12 s. Sinus = 60–100 bpm.</p></div>
+<div class="card"><h3>Danger rhythms</h3><p>V-Fib, pulseless V-Tach, asystole, complete heart block with instability, STEMI pattern with symptoms, severe hyperkalemia.</p></div>
+<div class="card"><h3>Similar rhythm traps</h3><p>AF is irregularly irregular. Flutter has sawtooth F waves. SVT is usually very regular and narrow. VT is usually wide and dangerous.</p></div>
+<div class="card"><h3>AV block ladder</h3><p>1st degree: long PR. Wenckebach: longer, longer, drop. Mobitz II: fixed PR then drop. 3rd degree: P and QRS unrelated.</p></div>
+<div class="card"><h3>Lead placement trap</h3><p>Wrong V1/V2 placement can mimic infarct or bundle changes. Always check lead placement before overcalling pathology.</p></div>
+<div class="card"><h3>Clinical safety</h3><p>In exams and real care, unstable patient signs matter: chest pain, syncope, hypotension, altered mental status, shock, poor perfusion.</p></div>
+</div>
+</div>
+</div>
+</section>
+</main>
+
+<div class="footer panel">
+<b>Reference basis:</b> This training app summarizes and converts the uploaded ECG text atlas into synthetic, interactive learning cases. It does not reproduce book tracings and is for education only, not diagnosis.
+</div>
+
+<script>
+const rhythms=[
+{name:"Normal Sinus Rhythm",group:"Normal ECG",rate:"60–100 bpm",qrs:"Narrow",risk:"Low",regular:true,p:true,pr:"120–200 ms",st:"Isoelectric",type:"sinus",ex:"Sinus rhythm begins from the SA node. Look for upright consistent P waves before each QRS, regular R-R intervals, normal PR, and narrow QRS.",clinical:"Usually normal. Compare all abnormal rhythms against this baseline."},
+{name:"Sinus Bradycardia",group:"Bradyarrhythmias",rate:"<60 bpm",qrs:"Narrow",risk:"Depends",regular:true,p:true,pr:"Normal",st:"Usually normal",type:"brady",ex:"Sinus rhythm with a slow rate. P waves remain sinus and QRS remains narrow.",clinical:"May be normal in athletes/sleep; concerning with hypotension, syncope, chest pain, confusion, or shock."},
+{name:"Severe Sinus Bradycardia",group:"Bradyarrhythmias",rate:"20–40 bpm",qrs:"Narrow",risk:"High if symptomatic",regular:true,p:true,pr:"Normal",st:"Variable",type:"severeBrady",ex:"Very slow sinus rhythm. The key is whether the patient is perfusing.",clinical:"Treat the patient, not the strip. Symptomatic severe bradycardia requires urgent escalation."},
+{name:"Sinus Arrest / SA Pause",group:"Bradyarrhythmias",rate:"Pause",qrs:"Narrow after pause",risk:"Moderate",regular:false,p:true,pr:"Normal before pause",st:"Normal",type:"pause",ex:"A pause occurs because the sinus node fails to discharge or conduct. The pause may not be an exact multiple of the baseline P-P interval.",clinical:"Long pauses can cause dizziness or syncope; escape beats may appear."},
+{name:"Junctional Escape Rhythm",group:"Bradyarrhythmias",rate:"40–60 bpm",qrs:"Narrow",risk:"Depends",regular:true,p:false,pr:"Absent/retrograde",st:"Normal",type:"junctional",ex:"Impulse arises near the AV junction. P waves may be absent, inverted, or occur after QRS.",clinical:"Often a backup pacemaker when SA node slows or fails."},
+{name:"First-Degree AV Block",group:"AV Blocks",rate:"Usually normal",qrs:"Narrow",risk:"Low",regular:true,p:true,pr:">200 ms",st:"Normal",type:"av1",ex:"All P waves conduct to QRS, but the PR interval is prolonged.",clinical:"Usually benign but shows slowed AV conduction."},
+{name:"Second-Degree AV Block Type I / Wenckebach",group:"AV Blocks",rate:"Variable",qrs:"Usually narrow",risk:"Moderate",regular:false,p:true,pr:"Progressive lengthening",st:"Normal",type:"wenck",ex:"PR interval gets progressively longer until a QRS complex drops.",clinical:"Classic clue: longer, longer, longer, drop."},
+{name:"Second-Degree AV Block Type II",group:"AV Blocks",rate:"Variable",qrs:"Often wide",risk:"High",regular:false,p:true,pr:"Fixed before dropped QRS",st:"Normal",type:"mobitz2",ex:"PR interval stays constant, then QRS drops unexpectedly.",clinical:"More dangerous than Wenckebach; can progress to complete heart block."},
+{name:"Third-Degree AV Block",group:"AV Blocks",rate:"Slow escape",qrs:"Variable",risk:"Emergency if unstable",regular:true,p:true,pr:"No relationship",st:"Variable",type:"av3",ex:"Atria and ventricles beat independently. P waves march through without relationship to QRS.",clinical:"Often requires pacing, especially if symptomatic."},
+{name:"PAC / Supraventricular Ectopic Beat",group:"Ectopic Beats",rate:"Variable",qrs:"Narrow",risk:"Low",regular:false,p:true,pr:"Variable",st:"Normal",type:"pac",ex:"Early atrial beat with abnormal premature P wave followed by narrow QRS.",clinical:"Often benign; can be triggered by caffeine, stress, hypoxia, or atrial irritation."},
+{name:"PVC / Ventricular Ectopic Beat",group:"Ectopic Beats",rate:"Variable",qrs:"Wide bizarre",risk:"Depends",regular:false,p:false,pr:"None before PVC",st:"Discordant",type:"pvc",ex:"Premature ventricular beat: wide QRS, no preceding P wave, usually compensatory pause.",clinical:"Frequent PVCs, couplets, or runs may be clinically important."},
+{name:"Sinus Tachycardia",group:"Tachyarrhythmias",rate:">100 bpm",qrs:"Narrow",risk:"Cause-dependent",regular:true,p:true,pr:"Normal",st:"May show demand changes",type:"tachy",ex:"Sinus rhythm with fast rate. P waves are present and consistent.",clinical:"Search for cause: fever, pain, anxiety, dehydration, hypoxia, anemia, shock."},
+{name:"Atrial Tachycardia",group:"Tachyarrhythmias",rate:"Usually 100–250",qrs:"Narrow",risk:"Moderate",regular:true,p:true,pr:"Abnormal P morphology",st:"Variable",type:"atrialTach",ex:"Ectopic atrial focus drives a regular tachycardia. P-wave axis/morphology differs from sinus.",clinical:"Differentiate from sinus tachycardia by P-wave shape and clinical context."},
+{name:"Multifocal Atrial Tachycardia",group:"Tachyarrhythmias",rate:">100",qrs:"Narrow",risk:"Moderate",regular:false,p:true,pr:"Variable",st:"Variable",type:"mat",ex:"Irregular rhythm with at least three different P-wave morphologies and variable PR intervals.",clinical:"Often associated with lung disease or hypoxia."},
+{name:"Atrial Fibrillation",group:"Tachyarrhythmias",rate:"Variable",qrs:"Narrow unless aberrancy",risk:"High",regular:false,p:false,pr:"No measurable PR",st:"Variable",type:"afib",ex:"No organized P waves and an irregularly irregular ventricular rhythm.",clinical:"Important stroke risk. In NHA questions, no P + irregularly irregular is the core clue."},
+{name:"Atrial Flutter",group:"Tachyarrhythmias",rate:"Atrial 250–350",qrs:"Usually narrow",risk:"Moderate",regular:true,p:false,pr:"Flutter waves",st:"Sawtooth baseline",type:"flutter",ex:"Sawtooth flutter waves. Ventricular response may be 2:1, 3:1, 4:1, or variable.",clinical:"Can mimic SVT if 2:1 conduction; look carefully for flutter waves."},
+{name:"AVNRT / PSVT",group:"Tachyarrhythmias",rate:"150–250",qrs:"Narrow",risk:"Moderate",regular:true,p:false,pr:"P hidden or retrograde",st:"Rate-related",type:"psvt",ex:"Regular narrow-complex tachycardia; P waves often hidden in QRS.",clinical:"Sudden onset/offset palpitations are common."},
+{name:"Orthodromic AVRT / WPW-related SVT",group:"WPW",rate:"Fast regular",qrs:"Usually narrow",risk:"Moderate",regular:true,p:false,pr:"Short RP possible",st:"Variable",type:"avrt",ex:"Reentrant tachycardia using AV node and accessory pathway. Orthodromic AVRT is usually narrow.",clinical:"Known WPW can create dangerous rapid rates, especially with AF."},
+{name:"WPW Preexcitation Pattern",group:"WPW",rate:"Variable",qrs:"Wide/slurred upstroke",risk:"Moderate",regular:true,p:true,pr:"Short PR",st:"Secondary changes",type:"wpw",ex:"Short PR interval, delta wave, and widened QRS from ventricular preexcitation.",clinical:"Do not confuse delta wave with bundle block or infarct Q waves."},
+{name:"Monomorphic Ventricular Tachycardia",group:"Ventricular Arrhythmias",rate:">100",qrs:"Wide",risk:"Emergency",regular:true,p:false,pr:"AV dissociation possible",st:"Not reliable",type:"vtach",ex:"Regular wide-complex tachycardia. Treat wide fast rhythms as VT until proven otherwise.",clinical:"Assess pulse and stability immediately."},
+{name:"Polymorphic VT / Torsade-like",group:"Ventricular Arrhythmias",rate:"Very fast",qrs:"Wide changing",risk:"Emergency",regular:false,p:false,pr:"None",st:"QT issue",type:"torsade",ex:"Wide-complex tachycardia with changing amplitude/axis that appears to twist around the baseline.",clinical:"Often related to prolonged QT, drugs, or electrolyte abnormalities."},
+{name:"Ventricular Fibrillation",group:"Ventricular Arrhythmias",rate:"Chaotic",qrs:"None",risk:"Cardiac arrest",regular:false,p:false,pr:"None",st:"None",type:"vfib",ex:"Chaotic electrical activity without organized P-QRS-T complexes.",clinical:"No effective cardiac output: CPR and defibrillation."},
+{name:"Asystole",group:"Cardiac Arrest",rate:"0",qrs:"None",risk:"Cardiac arrest",regular:false,p:false,pr:"None",st:"Flatline",type:"asystole",ex:"Absent ventricular electrical activity. Confirm in more than one lead and check connections.",clinical:"True asystole is not shockable; follow emergency protocols."},
+{name:"Right Bundle Branch Block",group:"Bundle/Fascicular Blocks",rate:"Variable",qrs:"Wide",risk:"Depends",regular:true,p:true,pr:"Variable",st:"Secondary",type:"rbbb",ex:"Delayed right ventricular activation. Classically wide QRS with rSR′/M pattern in V1 and broad terminal S in lateral leads.",clinical:"May be chronic or acute; interpret with symptoms and context."},
+{name:"Left Bundle Branch Block",group:"Bundle/Fascicular Blocks",rate:"Variable",qrs:"Wide",risk:"Can obscure MI",regular:true,p:true,pr:"Variable",st:"Secondary discordant",type:"lbbb",ex:"Delayed left ventricular activation. Wide QRS with broad/notched lateral R waves and deep right precordial S waves.",clinical:"LBBB can make ischemia interpretation difficult."},
+{name:"Left Anterior Fascicular Block",group:"Bundle/Fascicular Blocks",rate:"Variable",qrs:"Narrow/slightly wide",risk:"Depends",regular:true,p:true,pr:"Variable",st:"Variable",type:"lafb",ex:"Fascicular block producing left-axis deviation pattern.",clinical:"Think axis: leftward superior QRS forces."},
+{name:"Pacemaker Rhythm",group:"Pacemakers",rate:"Programmed",qrs:"Often wide",risk:"Depends",regular:true,p:false,pr:"Pacer spike",st:"Secondary",type:"paced",ex:"Pacing spikes precede captured complexes. Ventricular pacing produces wide QRS morphology.",clinical:"Check for capture: spike should be followed by QRS."},
+{name:"Pacemaker Failure to Capture",group:"Pacemakers",rate:"Brady/pause",qrs:"Missing after spike",risk:"High",regular:false,p:false,pr:"Spike without QRS",st:"Variable",type:"failCapture",ex:"Pacer spikes occur but are not followed by myocardial depolarization.",clinical:"Potential emergency if patient is dependent on pacing."},
+{name:"STEMI Pattern",group:"Ischemic Heart Disease",rate:"Variable",qrs:"Variable",risk:"Emergency",regular:true,p:true,pr:"Variable",st:"ST elevation",type:"stemi",ex:"ST elevation at the J point/ST segment suggests acute transmural injury in the correct clinical setting.",clinical:"Correlate with symptoms and leads. Escalate immediately for suspected acute coronary syndrome."},
+{name:"NSTEMI / Ischemia Pattern",group:"Ischemic Heart Disease",rate:"Variable",qrs:"Variable",risk:"High",regular:true,p:true,pr:"Variable",st:"ST depression/T inversion",type:"ischemia",ex:"ST depression or T-wave inversion can reflect ischemia, especially with symptoms and dynamic change.",clinical:"Do not diagnose from T inversion alone; interpret with clinical picture."},
+{name:"Acute Pericarditis Pattern",group:"Pericardium/Myocardium",rate:"Variable",qrs:"Usually narrow",risk:"Moderate",regular:true,p:true,pr:"May show PR depression",st:"Diffuse ST elevation",type:"pericarditis",ex:"Classically diffuse concave ST elevation with PR depression rather than territorial reciprocal STEMI pattern.",clinical:"Chest pain often changes with position; still requires clinical evaluation."},
+{name:"Left Ventricular Hypertrophy Pattern",group:"Hypertrophy",rate:"Variable",qrs:"High voltage",risk:"Long-term risk",regular:true,p:true,pr:"Variable",st:"Strain possible",type:"lvh",ex:"High QRS voltages with possible lateral ST-T strain pattern suggest LVH.",clinical:"Often associated with chronic pressure load such as hypertension."},
+{name:"Pulmonary Embolism / Acute Cor Pulmonale Pattern",group:"Pulmonary Circulation",rate:"Often tachy",qrs:"Right strain clues",risk:"High",regular:true,p:true,pr:"Variable",st:"T inversion possible",type:"pe",ex:"May show sinus tachycardia, right heart strain, right axis deviation, or S1Q3T3 pattern.",clinical:"ECG is supportive only; PE diagnosis requires clinical/imaging correlation."},
+{name:"Hyperkalemia Pattern",group:"Electrolytes/Drugs",rate:"Variable",qrs:"May widen",risk:"High",regular:true,p:true,pr:"May prolong",st:"Tall peaked T",type:"hyperk",ex:"Tall narrow peaked T waves, PR prolongation, P flattening, QRS widening in severe cases.",clinical:"Potentially life-threatening electrolyte emergency."},
+{name:"Hypokalemia Pattern",group:"Electrolytes/Drugs",rate:"Variable",qrs:"Usually narrow",risk:"Moderate",regular:true,p:true,pr:"Variable",st:"ST depression/U waves",type:"hypok",ex:"ST depression, T flattening, and prominent U waves can occur.",clinical:"May predispose to arrhythmias; check electrolytes and medications."},
+{name:"Long QT Pattern",group:"Inherited/Drug/Electrolyte",rate:"Variable",qrs:"Narrow",risk:"Torsade risk",regular:true,p:true,pr:"Variable",st:"Prolonged QT",type:"longqt",ex:"QT interval remains prolonged after rate correction. Predisposes to torsade de pointes.",clinical:"Review drugs, electrolytes, congenital syndromes, and syncope history."},
+{name:"Brugada-like Pattern",group:"Inherited Arrhythmias",rate:"Variable",qrs:"Pseudo-RBBB in V1-V3",risk:"High",regular:true,p:true,pr:"Variable",st:"Coved ST elevation V1-V3",type:"brugada",ex:"Right precordial coved ST elevation with RBBB-like morphology raises concern for Brugada pattern.",clinical:"Important in syncope or family history of sudden death."}
+];
+
+let current=rhythms[0], t=0, paused=false, speed=1, gain=1, noiseLevel=.05, score=0,total=0;
+const canvas=document.getElementById('ekg'), ctx=canvas.getContext('2d'), sel=document.getElementById('rhythmSelect');
+rhythms.forEach((r,i)=>{let o=document.createElement('option');o.value=i;o.textContent=`${r.group} — ${r.name}`;sel.appendChild(o)});
+
+function loadSelected(){current=rhythms[sel.value];updateInfo()}
+function randomCase(){let i=Math.floor(Math.random()*rhythms.length);sel.value=i;current=rhythms[i];updateInfo()}
+function togglePause(){paused=!paused}
+function updateInfo(){
+ rName.textContent=current.name;rRate.textContent=current.rate;rQrs.textContent=current.qrs;rRisk.textContent=current.risk;title.textContent=current.name;
+ const danger=current.risk.includes("Emergency")||current.risk.includes("arrest")||current.risk==="High";
+ badges.innerHTML=`<span class="badge b-blue">${current.group}</span><span class="badge b-slate">Rate: ${current.rate}</span><span class="badge ${(current.qrs.includes('Wide')||current.qrs.includes('None'))?'b-red':'b-green'}">QRS: ${current.qrs}</span><span class="badge ${danger?'b-red':'b-orange'}">Risk: ${current.risk}</span><span class="badge b-purple">PR: ${current.pr}</span><span class="badge b-green">ST/T: ${current.st}</span>`;
+ explanation.innerHTML="<b>Interpretation:</b> "+current.ex+"<br><br><b>What proves it:</b> Use rate, R-R regularity, P-wave pattern, PR interval, QRS width/morphology, ST/T changes, and clinical context.";
+ clinical.innerHTML="<b>Clinical interpretation tip:</b> "+current.clinical;
+}
+
+function spike(x,c,w,a){let z=(x-c)/w;return a*Math.exp(-z*z)}
+function beatLen(){let type=current.type;if(["tachy","psvt","avrt","atrialTach"].includes(type))return 85;if(["vtach","torsade"].includes(type))return 105;if(["brady","junctional","severeBrady"].includes(type))return type==="severeBrady"?330:250;if(type==="flutter")return 150;if(type==="afib")return 120+Math.sin((x+t)*.02)*30;return 160}
+function waveAt(x){
+ let type=current.type, base=0, beat=160;
+ if(type==="asystole") return (Math.random()-.5)*1.1;
+ if(type==="vfib") return (Math.sin(x*.12+t*.05)+Math.sin(x*.39)*.7+Math.sin(x*.07)*1.2)*18+(Math.random()-.5)*10;
+ if(["tachy","psvt","avrt","atrialTach"].includes(type)) beat=88;
+ if(type==="vtach") beat=110;
+ if(type==="torsade"){let amp=35+25*Math.sin((x+t)*.025);return Math.sin((x+t*speed)/22)*amp + Math.sin((x+t)/8)*6}
+ if(type==="brady"||type==="junctional") beat=250;
+ if(type==="severeBrady") beat=340;
+ if(type==="flutter") beat=150;
+ if(type==="afib") beat=125+35*Math.sin((x+t)*.013);
+ let phase=((x+t*speed)%beat);
+ if(type==="flutter")base+=Math.sin((x+t)*.18)*9;
+ if(type==="afib")base+=(Math.random()-.5)*8+Math.sin(x*.31)*3;
+ if(type==="pause" && Math.floor((x+t*speed)/beat)%5===0) return (Math.random()-.5)*2;
+ let hasP=current.p && !["vtach","pvc","psvt","avrt","junctional","paced","failCapture"].includes(type);
+ if(hasP){
+   let pAmp=12;
+   if(type==="mat") pAmp=8+8*Math.sin(Math.floor((x+t*speed)/beat)%3);
+   base+=spike(phase,35,10,pAmp*gain);
+ }
+ if(type==="wenck"&&phase>115)base-=spike(phase,95,5,15*gain);
+ if(type==="mobitz2"&&Math.floor((x+t*speed)/beat)%4===0)return base;
+ if(type==="pvc"&&Math.floor((x+t*speed)/beat)%5===0){base+=spike(phase,65,9,-45*gain)+spike(phase,78,14,78*gain)+spike(phase,98,15,-36*gain);return base}
+ if(type==="vtach"){base+=Math.sin(phase/beat*Math.PI*2)*55*gain;return base}
+ if(type==="paced"||type==="failCapture"){
+   base+=spike(phase,55,1,85*gain);
+   if(type==="failCapture" && Math.floor((x+t*speed)/beat)%3===0) return base;
+ }
+ let qrsWide=["rbbb","lbbb","wpw","paced","hyperk","vtach","pvc"].includes(type);
+ let qAmp= qrsWide? -22:-18, rAmp=qrsWide?72:75, sAmp=qrsWide?-40:-28;
+ if(type==="lvh") rAmp=110;
+ if(type==="lbbb"){base+=spike(phase,63,5,-35*gain)+spike(phase,78,9,85*gain)+spike(phase,93,9,35*gain);}
+ else if(type==="rbbb"){base+=spike(phase,62,3,-18*gain)+spike(phase,70,2,55*gain)+spike(phase,80,4,-25*gain)+spike(phase,92,4,45*gain);}
+ else if(type==="wpw"){base+=spike(phase,55,11,18*gain)+spike(phase,68,5,65*gain)+spike(phase,84,7,-28*gain);}
+ else {base+=spike(phase,62,qrsWide?5:3,qAmp*gain)+spike(phase,70,qrsWide?5:2,rAmp*gain)+spike(phase,78,qrsWide?7:4,sAmp*gain);}
+ if(type==="stemi" && phase>82 && phase<112) base+=22;
+ if(type==="pericarditis" && phase>82 && phase<128) base+=14;
+ if(type==="ischemia" && phase>82 && phase<115) base-=12;
+ if(type==="brugada" && phase>78 && phase<125) base+=18*Math.exp(-(phase-84)/70);
+ let tAmp=20;
+ if(type==="hyperk") tAmp=48;
+ if(type==="hypok") tAmp=7;
+ if(type==="ischemia") tAmp=-20;
+ if(type==="pe") tAmp=-18;
+ if(type==="lvh") tAmp=-14;
+ if(type==="longqt") base+=spike(phase,150,28,20*gain); else base+=spike(phase,118,18,tAmp*gain);
+ if(type==="hypok") base+=spike(phase,155,12,18*gain);
+ return base+(Math.random()-.5)*noiseLevel*20;
+}
+function drawGrid(){
+ ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.width,canvas.height);
+ for(let x=0;x<canvas.width;x+=10){ctx.strokeStyle=x%50===0?"#fecaca":"#fee2e2";ctx.lineWidth=x%50===0?1.2:.5;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke()}
+ for(let y=0;y<canvas.height;y+=10){ctx.strokeStyle=y%50===0?"#fecaca":"#fee2e2";ctx.lineWidth=y%50===0?1.2:.5;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke()}
+}
+function animate(){
+ drawGrid();ctx.beginPath();ctx.strokeStyle="#111827";ctx.lineWidth=2.2;let mid=170;
+ for(let x=0;x<canvas.width;x++){let y=mid-waveAt(x); if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}
+ ctx.stroke();
+ ctx.fillStyle="#0f3b78";ctx.font="bold 16px Segoe UI";ctx.fillText(current.name+" | synthetic training strip | 25 mm/s grid",20,30);
+ ctx.font="12px Segoe UI";ctx.fillStyle="#64748b";ctx.fillText("Small box = 0.04 s • Large box = 0.20 s • Interpret using the checklist, not pattern memory alone",20,50);
+ if(!paused)t+=2;requestAnimationFrame(animate);
+}
+function mark(s){
+ const map={
+ Rate:`Rate clue: ${current.rate}. Regular rhythm: use 300 / large boxes. Irregular rhythm: count QRS complexes in 6 seconds × 10.`,
+ Rhythm:`Rhythm clue: ${current.regular?'regular or mostly regular':'irregular/variable'}. Check if R-R intervals march out.`,
+ Atrial:`Atrial clue: ${current.p?'P waves are present or expected':'P waves are absent, hidden, or replaced by fibrillatory/flutter activity'}.`,
+ Conduction:`Conduction clue: PR = ${current.pr}; QRS = ${current.qrs}. Wide QRS suggests ventricular origin, bundle block, pacing, preexcitation, or electrolyte effect.`,
+ STT:`ST/T clue: ${current.st}. Examine J point, ST segment, T-wave shape, and QT duration.`,
+ Danger:`Danger level: ${current.risk}. If unstable, escalate immediately regardless of perfect rhythm labeling.`
+ };
+ explanation.innerHTML="<b>"+s+":</b> "+map[s]+"<br><br><b>Case interpretation:</b> "+current.ex;
+}
+function showTab(id,btn){document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active')}
+function buildLibrary(){let rows="<tr><th>Group</th><th>Scenario</th><th>Rate</th><th>P/PR</th><th>QRS/ST-T</th><th>Recognition key</th></tr>";rhythms.forEach(r=>rows+=`<tr><td>${r.group}</td><td><b>${r.name}</b></td><td>${r.rate}</td><td>P: ${r.p?'present/possible':'absent/hidden'}<br>PR: ${r.pr}</td><td>QRS: ${r.qrs}<br>ST/T: ${r.st}</td><td>${r.ex}</td></tr>`);libTable.innerHTML=rows}
+function startQuiz(){showTab('quiz',document.querySelectorAll('.tab')[1]);nextQuestion()}
+function nextQuestion(){let r=rhythms[Math.floor(Math.random()*rhythms.length)];current=r;sel.value=rhythms.indexOf(r);updateInfo();let options=[r.name];while(options.length<4){let n=rhythms[Math.floor(Math.random()*rhythms.length)].name;if(!options.includes(n))options.push(n)}options.sort(()=>Math.random()-.5);quizBox.innerHTML=`<h3>Identify this ECG scenario:</h3>`+options.map(o=>`<div class="choice" onclick="answer(this,\`${o}\`,\`${r.name}\`)">${o}</div>`).join('')}
+function answer(el,choice,correct){total++;document.getElementById('total').textContent=total;if(choice===correct){score++;el.classList.add('correct')}else{el.classList.add('wrong')}document.getElementById('score').textContent=score;let pct=total?score/total:0;level.textContent=pct>.9?"Expert":pct>.85?"NHA-ready":pct>.7?"Intermediate":"Beginner";quizBox.innerHTML+=`<div class="explain"><b>Correct answer:</b> ${correct}<br>${current.ex}<br><b>Proof:</b> Rate ${current.rate}; PR ${current.pr}; QRS ${current.qrs}; ST/T ${current.st}.<br><b>Clinical tip:</b> ${current.clinical}</div>`}
+function resetScore(){score=0;total=0;document.getElementById('score').textContent=0;document.getElementById('total').textContent=0;level.textContent="Beginner"}
+updateInfo();buildLibrary();animate();
+</script>
+</body>
+</html>
